@@ -78,6 +78,15 @@ footer{position:relative;overflow:hidden;text-align:center;padding:52px 20px 60p
 footer::before{content:"";position:absolute;inset:0;background:url(../../media/common/guanggu-living.jpg) center 35%/cover no-repeat;filter:brightness(.6) saturate(1.08);transform:scale(1.03)}
 footer::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(9,13,11,.45),rgba(9,13,11,.18) 45%,rgba(9,13,11,.58))}
 .foot-card{position:relative;z-index:1;display:inline-block;color:rgba(255,255,255,.94);font-size:13px;line-height:1.8;padding:16px 22px;border-radius:18px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.22);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 8px 30px rgba(0,0,0,.28)}
+
+/* ---------- 门店联系卡片：电话 + 微信二维码 ---------- */
+.contact-card{display:flex;align-items:center;justify-content:space-between;gap:16px;background:var(--card);border-radius:18px;padding:18px 20px;margin:22px 0 8px;box-shadow:var(--shadow-sm)}
+.cc-title{font-size:13px;color:var(--faint);margin-bottom:6px}
+.cc-phone{font-size:22px;font-weight:800;color:var(--accent-deep);letter-spacing:.02em}
+.cc-note{font-size:12.5px;color:var(--muted);margin-top:4px}
+.cc-qr{text-align:center;flex:none}
+.cc-qr img{width:120px;height:120px;object-fit:cover;border-radius:10px;display:block;cursor:zoom-in}
+.cc-qr div{font-size:12px;color:var(--muted);margin-top:4px}
 .demo-banner{background:#FFF7E8;border-bottom:1px solid #ECD9AE;color:#7A5A16;text-align:center;font-size:13px;padding:8px 12px}
 
 /* ---------- 骨架屏 ---------- */
