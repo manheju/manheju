@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>图片加载测速</title>
+<style>
+body{font-family:-apple-system,"PingFang SC",sans-serif;margin:16px;background:#F6F5F1;color:#1D1D1F}
+h1{font-size:18px}
+.card{background:#fff;border-radius:14px;padding:12px;margin:14px 0;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+.card h2{font-size:15px;margin:0 0 8px}
+.card img{width:100%;border-radius:10px;display:block;background:#eee;min-height:120px}
+.time{font-size:20px;font-weight:700;color:#0C4A38;margin-top:8px}
+button{font-size:16px;padding:10px 22px;border:0;border-radius:10px;background:#0C4A38;color:#fff}
+.note{color:#666;font-size:13px;line-height:1.6}
+</style>
+</head>
+<body>
+<h1>同一张照片，两个图床测速</h1>
+<p class="note">先加载腾讯云的图，加载完再加载 GitHub 的图，各自计时。数字越小越快。</p>
+<div class="card">
+<h2>① 腾讯云（广州）</h2>
+<img id="imgCos" alt="腾讯云图片">
+<div class="time" id="tCos">加载中…</div>
+</div>
+<div class="card">
+<h2>② GitHub（现行）</h2>
+<img id="imgGh" alt="GitHub图片">
+<div class="time" id="tGh">等待上一张…</div>
+</div>
+<button onclick="location.reload()">再测一次</button>
+<script>
+var bust = Date.now();
+var t0 = performance.now();
+var cos = document.getElementById('imgCos');
+var gh = document.getElementById('imgGh');
+cos.onload = function(){
+  var t1 = performance.now();
+  document.getElementById('tCos').textContent = '用时约 ' + Math.round(t1 - t0) + ' 毫秒';
+  var t2 = performance.now();
+  gh.onload = function(){
+    document.getElementById('tGh').textContent = '用时约 ' + Math.round(performance.now() - t2) + ' 毫秒';
+  };
+  gh.onerror = function(){ document.getElementById('tGh').textContent = '加载失败'; };
+  gh.src = 'https://manheju.github.io/manheju/media/tiandi/t11/5.jpg?v=' + bust;
+};
+cos.onerror = function(){ document.getElementById('tCos').textContent = '加载失败'; };
+cos.src = 'https://manheju-media-1424222315.cos.ap-guangzhou.myqcloud.com/media/tiandi/t11/5.jpg?v=' + bust;
+</script>
+</body>
+</html>
