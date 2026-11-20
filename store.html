@@ -40,8 +40,9 @@ window.zoom=function(src){ document.getElementById('lightboxImg').src=src; lb.cl
         ${t.highlights&&t.highlights.length?`<div class="tags">${(Array.isArray(t.highlights)?t.highlights:t.highlights.split(/[,，]/)).map(h=>`<span class="tag">${esc(h)}</span>`).join('')}</div>`:''}</div></article>`}).join(''):'<div class="empty">这家门店的房型照片正在整理中</div>'}
 
 
-      <section class="fees"><h3>收费说明（统一）</h3><ul>
-      <li>电费：1–1.2元/度，水费 5元/吨，实表实时查询</li>
+      <section class="fees"><h3>收费说明</h3><ul>
+      <li>电费：${esc(store.elec_fee||'1–1.2元/度')}，水费 5元/吨，实表实时查询</li>
+      ${store.parking_fee?`<li>停车费：${esc(store.parking_fee)}</li>`:''}
       <li>公寓管理费 150元/月，包含宽带网络、公区打扫、家电家具维修</li>
       <li>无中介费，自家房源直租，自有团队打理，安全性好</li>
       <li>押一付一，租期灵活，具体请微信咨询</li></ul></section>
