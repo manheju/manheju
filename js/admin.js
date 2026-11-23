@@ -17,7 +17,7 @@ async function showPanel(user){ $('#loginBox').style.display='none'; $('#panel')
 async function reloadAll(){ cache.stores=await ManjuData.adminList('stores'); cache.roomTypes=await ManjuData.adminList('room_types'); try{cache.roomMedia=await ManjuData.adminList('room_media')}catch(e){} try{cache.availableRooms=await ManjuData.adminList('available_rooms')}catch(e){} renderStores(); renderTypes(); renderRooms(); renderSheets(); }
 ManjuData.adminSession().then(u=>{ if(u) showPanel(u); });
 
-$$('.tabs button').forEach(b=>b.onclick=()=>{ $$('.tabs button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); ['stores','types','rooms','sheets'].forEach(t=>$('#tab-'+t).style.display = t===b.dataset.tab?'block':'none'); });
+$$('.tabs button').forEach(b=>b.onclick=()=>{ $$('.tabs button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); ['stores','types','rooms','sheets','attr'].forEach(t=>$('#tab-'+t).style.display = t===b.dataset.tab?'block':'none'); if(b.dataset.tab==='attr' && window.AttrPanel) AttrPanel.load(); });
 
 // ---------- 门店 ----------
 function renderStores(){
