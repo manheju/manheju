@@ -46,6 +46,15 @@
     if (!r.ok) throw new Error("保存失败（" + r.status + "）");
     return r.json();
   }
+  async function restDelete(table, query) {
+    const t = await token();
+    const r = await fetch(BASE + "/rest/v1/" + table + "?" + query, {
+      method: "DELETE",
+      headers: { apikey: ANON, Authorization: "Bearer " + (t || ANON) }
+    });
+    if (!r.ok) throw new Error("删除失败（" + r.status + "）");
+    return true;
+  }
 
   const KIND_LABEL = { enter: "进入小程序", view_store: "看门店", view_type: "看户型", tap_call: "点了电话", tap_qr: "看了二维码" };
   let D = null;
@@ -129,7 +138,7 @@
     el.innerHTML =
       '<div class="card"><h2>' + (staff ? esc(staff.name) + "（" + esc(staff.code) + "）名下的客户" : "无归属客户") + '（' + vs.length + '）</h2>' +
       '<div class="row" style="margin-bottom:10px"><button class="small ghost" onclick="AttrPanel.overview()">← 返回总览</button><button class="small" onclick="AttrPanel.load()">刷新数据</button></div>' +
-      '<p class="hint">微信不给小程序客户的昵称头像，认出是谁后点「备注」给他起名（如：王姐·看长安路），名单里就一眼能认出来。</p>' +
+      '<p class="hint">微信不给小程序客户的昵称头像，认出是谁后点「备注」给他起名（如：王姐·看长安路），名单里就一眼能认出来。归属记错了：用「改归属」直接划给正确的人；员工扫错了别人的码，用「重置」清掉记录，再让他关掉小程序重扫自己的码。</p>' +
       (vs.length ? vs.map((v) => {
         const st = visitorStats(v, byOpenid);
         return '<div class="row" style="border-bottom:1px solid var(--line,#eee);padding:10px 0"><span class="grow"><b>' + esc(dispName(v)) + '</b>' + (v.remark ? ' <span class="hint">' + esc(shortId(v.openid)) + '</span>' : '') +
@@ -137,6 +146,8 @@
           (st.storesSeen.length ? "<br>逛过：" + esc(st.storesSeen.join("、")) : "") +
           "<br>点电话 " + st.calls + " 次 · 看二维码 " + st.qrs + " 次 · 最后活跃 " + fmtT(st.last) + '</span></span>' +
           '<button class="small ghost" onclick="AttrPanel.remark(\'' + esc(v.openid) + '\')">备注</button>' +
+          '<button class="small ghost" onclick="AttrPanel.reassign(\'' + esc(v.openid) + '\')">改归属</button>' +
+          '<button class="small ghost" onclick="AttrPanel.resetVisitor(\'' + esc(v.openid) + '\')">重置</button>' +
           '<button class="small ghost" onclick="AttrPanel.timeline(\'' + esc(v.openid) + '\')">看轨迹</button></div>';
       }).join("") : '<p class="hint">还没有客户。</p>') +
       '</div>';
@@ -153,7 +164,9 @@
       '<p class="hint">归属：' + (staff ? esc(staff.name) + "（" + esc(staff.code) + "）" : "无归属") +
       (v ? " · 首次进入 " + fmtT(v.created_at) : "") + (v && v.remark ? " · " + esc(shortId(openid)) : "") + '</p>' +
       '<div class="row" style="margin-bottom:10px"><button class="small ghost" onclick="AttrPanel.customers(\'' + (v && v.staff_code ? esc(v.staff_code) : "") + '\')">← 返回客户名单</button>' +
-      '<button class="small ghost" onclick="AttrPanel.remark(\'' + esc(openid) + '\')">备注</button></div>' +
+      '<button class="small ghost" onclick="AttrPanel.remark(\'' + esc(openid) + '\')">备注</button>' +
+      '<button class="small ghost" onclick="AttrPanel.reassign(\'' + esc(openid) + '\')">改归属</button>' +
+      '<button class="small ghost" onclick="AttrPanel.resetVisitor(\'' + esc(openid) + '\')">重置归属</button></div>' +
       (evs.length ? evs.map((e) => {
         let extra = "";
         if (e.store_id) extra += " · " + esc(storeName(e.store_id));
@@ -177,5 +190,38 @@
     } catch (e) { alert("保存备注失败：" + (e.message || e)); }
   }
 
-  window.AttrPanel = { load, overview: renderOverview, customers, timeline, remark };
+  async function reassign(openid) {
+    const v = D.visitors.find((x) => x.openid === openid);
+    if (!v) return;
+    const list = D.staff.map((s) => s.code + " " + s.name).join("、");
+    const input = window.prompt("把客户「" + dispName(v) + "」改归属给谁？输入编号（如 S09）。\n当前归属：" + (v.staff_code || "无归属") + "\n可选：" + list, v.staff_code || "");
+    if (input === null) return;
+    const code = input.trim().toUpperCase();
+    const target = D.staff.find((s) => s.code === code);
+    if (!target) { alert("编号不对，请输列表里的编号，比如 S09"); return; }
+    if (!window.confirm("确认把「" + dispName(v) + "」的归属改为 " + target.code + " " + target.name + "？")) return;
+    try {
+      await restPatch("visitors", "openid=eq." + encodeURIComponent(openid), { staff_code: target.code });
+      v.staff_code = target.code;
+      if (VIEW.name === "timeline") timeline(openid);
+      else if (VIEW.name === "customers") customers(VIEW.code || "");
+      else renderOverview();
+    } catch (e) { alert("改归属失败：" + (e.message || e)); }
+  }
+
+  async function resetVisitor(openid) {
+    const v = D.visitors.find((x) => x.openid === openid);
+    if (!v) return;
+    if (!window.confirm("重置归属：将删除客户「" + dispName(v) + "」的归属记录（浏览轨迹保留）。删掉后，他下次扫谁的码进来，就重新记在谁名下。\n\n典型用法：销售扫错了别人的码——先在这里重置，再让他把小程序彻底关掉、重新扫自己的码。\n\n确认重置？")) return;
+    const backCode = v.staff_code || "";
+    try {
+      await restDelete("visitors", "openid=eq." + encodeURIComponent(openid));
+      D.visitors = D.visitors.filter((x) => x.openid !== openid);
+      if (VIEW.name === "timeline") customers(backCode);
+      else if (VIEW.name === "customers") customers(VIEW.code || "");
+      else renderOverview();
+    } catch (e) { alert("重置失败：" + (e.message || e)); }
+  }
+
+  window.AttrPanel = { load, overview: renderOverview, customers, timeline, remark, reassign, resetVisitor };
 })();
