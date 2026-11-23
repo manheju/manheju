@@ -108,24 +108,28 @@
     const el = $("#tab-attr");
     const byOpenid = eventsByOpenid();
     const rows = D.staff.map((s) => {
-      const vs = D.visitors.filter((v) => v.staff_code === s.code);
+      const all = D.visitors.filter((v) => v.staff_code === s.code);
+      const self = all.find((v) => v.is_self) || null;
+      const vs = all.filter((v) => !v.is_self);
       let calls = 0, qrs = 0, last = "";
       vs.forEach((v) => { const st = visitorStats(v, byOpenid); calls += st.calls; qrs += st.qrs; if (st.last > last) last = st.last; });
-      return { s, n: vs.length, calls, qrs, last };
+      return { s, n: vs.length, calls, qrs, last, self };
     });
     const noneVs = D.visitors.filter((v) => !v.staff_code);
     el.innerHTML =
       '<div class="card"><h2>客户归属 · 总览</h2>' +
       '<p class="hint">归属规则：客户第一次扫谁的码就永久记在谁名下，不换人。评业绩看「点电话 / 看二维码」，不看打开数。点任意一行看他名下的客户名单。</p>' +
       '<div class="row" style="margin-bottom:10px"><button class="small" onclick="AttrPanel.load()">刷新数据</button></div>' +
-      '<table><tr><th>编号</th><th>姓名</th><th>身份</th><th>客户数</th><th>点电话</th><th>看二维码</th><th>最近活跃</th><th></th></tr>' +
+      '<table><tr><th>编号</th><th>姓名</th><th>身份</th><th>绑定状态</th><th>客户数</th><th>点电话</th><th>看二维码</th><th>最近活跃</th><th></th></tr>' +
       rows.map((r) =>
         '<tr><td>' + esc(r.s.code) + '</td><td><b>' + esc(r.s.name) + '</b>' + (r.s.phone ? "" : ' <span class="err">缺联系电话</span>') + '</td>' +
-        '<td>' + esc(r.s.role) + '</td><td>' + r.n + '</td><td>' + r.calls + '</td><td>' + r.qrs + '</td>' +
+        '<td>' + esc(r.s.role) + '</td>' +
+        '<td>' + (r.self ? '<b style="color:#1a7f37">已绑定</b><br><span class="hint">' + fmtT(r.self.created_at) + '</span>' : '<span class="hint">未绑定</span>') + '</td>' +
+        '<td>' + r.n + '</td><td>' + r.calls + '</td><td>' + r.qrs + '</td>' +
         '<td>' + (r.last ? fmtT(r.last) : "—") + '</td>' +
         '<td><button class="small ghost" onclick="AttrPanel.customers(\'' + esc(r.s.code) + '\')">看客户</button></td></tr>'
       ).join("") +
-      '<tr><td>—</td><td><b>无归属</b></td><td>搜索/通用入口</td><td>' + noneVs.length + '</td><td colspan="4"><button class="small ghost" onclick="AttrPanel.customers(\'\')">看客户</button></td></tr>' +
+      '<tr><td>—</td><td><b>无归属</b></td><td>搜索/通用入口</td><td>—</td><td>' + noneVs.length + '</td><td colspan="4"><button class="small ghost" onclick="AttrPanel.customers(\'\')">看客户</button></td></tr>' +
       '</table></div>';
   }
 
@@ -142,10 +146,11 @@
       '<p class="hint">微信不给小程序客户的昵称头像，认出是谁后点「备注」给他起名（如：王姐·看长安路），名单里就一眼能认出来。归属记错了：用「改归属」直接划给正确的人；员工本人扫错了别人的码，用「重置本人绑定」帮他清掉挂错的记录。</p>' +
       (vs.length ? vs.map((v) => {
         const st = visitorStats(v, byOpenid);
-        return '<div class="row" style="border-bottom:1px solid var(--line,#eee);padding:10px 0"><span class="grow"><b>' + esc(dispName(v)) + '</b>' + (v.remark ? ' <span class="hint">' + esc(shortId(v.openid)) + '</span>' : '') +
+        return '<div class="row" style="border-bottom:1px solid var(--line,#eee);padding:10px 0"><span class="grow"><b>' + esc(dispName(v)) + '</b>' + (v.is_self ? ' <b style="color:#1a7f37">本人·已绑定</b>' : '') + (v.remark ? ' <span class="hint">' + esc(shortId(v.openid)) + '</span>' : '') +
           '<br><span class="hint">首次进入：' + fmtT(v.created_at) + (v.first_scene ? " · 来源 " + esc(v.first_scene) : "") +
           (st.storesSeen.length ? "<br>逛过：" + esc(st.storesSeen.join("、")) : "") +
           "<br>点电话 " + st.calls + " 次 · 看二维码 " + st.qrs + " 次 · 最后活跃 " + fmtT(st.last) + '</span></span>' +
+          (v.staff_code ? '<button class="small ghost" onclick="AttrPanel.markSelf(\'' + esc(v.openid) + '\')">' + (v.is_self ? "取消本人" : "标为本人") + '</button>' : '') +
           '<button class="small ghost" onclick="AttrPanel.remark(\'' + esc(v.openid) + '\')">备注</button>' +
           '<button class="small ghost" onclick="AttrPanel.reassign(\'' + esc(v.openid) + '\')">改归属</button>' +
           '<button class="small ghost" onclick="AttrPanel.timeline(\'' + esc(v.openid) + '\')">看轨迹</button></div>';
@@ -162,6 +167,7 @@
     el.innerHTML =
       '<div class="card"><h2>' + esc(dispName(v)) + ' 的轨迹</h2>' +
       '<p class="hint">归属：' + (staff ? esc(staff.name) + "（" + esc(staff.code) + "）" : "无归属") +
+      (v && v.is_self ? " · 本人（已绑定）" : "") +
       (v ? " · 首次进入 " + fmtT(v.created_at) : "") + (v && v.remark ? " · " + esc(shortId(openid)) : "") + '</p>' +
       '<div class="row" style="margin-bottom:10px"><button class="small ghost" onclick="AttrPanel.customers(\'' + (v && v.staff_code ? esc(v.staff_code) : "") + '\')">← 返回客户名单</button>' +
       '<button class="small ghost" onclick="AttrPanel.remark(\'' + esc(openid) + '\')">备注</button>' +
@@ -237,5 +243,29 @@
     } catch (e) { alert("重置失败：" + (e.message || e)); }
   }
 
-  window.AttrPanel = { load, overview: renderOverview, customers, timeline, remark, reassign, resetSelf };
+  // 标为本人：员工扫自己的码绑定后，店长在他名下的名单里把他本人那条标出来；
+  // 总览随即显示「已绑定 + 绑定时间」，且本人记录不再计入客户数/点电话统计。同一员工只能有一条本人记录。
+  async function markSelf(openid) {
+    const v = D.visitors.find((x) => x.openid === openid);
+    if (!v || !v.staff_code) return;
+    try {
+      if (v.is_self) {
+        await restPatch("visitors", "openid=eq." + encodeURIComponent(openid), { is_self: false });
+        v.is_self = false;
+      } else {
+        const others = D.visitors.filter((x) => x.staff_code === v.staff_code && x.is_self && x.openid !== openid);
+        for (const o of others) {
+          await restPatch("visitors", "openid=eq." + encodeURIComponent(o.openid), { is_self: false });
+          o.is_self = false;
+        }
+        await restPatch("visitors", "openid=eq." + encodeURIComponent(openid), { is_self: true });
+        v.is_self = true;
+      }
+      if (VIEW.name === "customers") customers(VIEW.code || "");
+      else if (VIEW.name === "timeline") timeline(openid);
+      else renderOverview();
+    } catch (e) { alert("标记失败：" + (e.message || e)); }
+  }
+
+  window.AttrPanel = { load, overview: renderOverview, customers, timeline, remark, reassign, resetSelf, markSelf };
 })();

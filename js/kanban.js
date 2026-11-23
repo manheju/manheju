@@ -44,24 +44,28 @@
   function renderOverview() {
     const byOpenid = eventsByOpenid();
     const rows = D.staff.map((s) => {
-      const vs = D.visitors.filter((v) => v.staff_code === s.code);
+      const all = D.visitors.filter((v) => v.staff_code === s.code);
+      const self = all.find((v) => v.is_self) || null;
+      const vs = all.filter((v) => !v.is_self);
       let calls = 0, qrs = 0, last = "";
       vs.forEach((v) => { const st = visitorStats(v, byOpenid); calls += st.calls; qrs += st.qrs; if (st.last > last) last = st.last; });
-      return { s, n: vs.length, calls, qrs, last };
+      return { s, n: vs.length, calls, qrs, last, self };
     });
     const noneVs = D.visitors.filter((v) => !v.staff_code);
     el.innerHTML =
       '<div class="card"><h2>客户归属 · 总览</h2>' +
       '<p class="hint">归属规则：客户第一次扫谁的码就永久记在谁名下。评业绩看「点电话 / 看二维码」。点「看客户」看名单，再点「看轨迹」看单个客户的完整访问流程。</p>' +
       '<div class="row" style="margin-bottom:10px"><button class="small" onclick="Kanban.load()">刷新数据</button></div>' +
-      '<table><tr><th>编号</th><th>姓名</th><th>身份</th><th>客户数</th><th>点电话</th><th>看二维码</th><th>最近活跃</th><th></th></tr>' +
+      '<table><tr><th>编号</th><th>姓名</th><th>身份</th><th>绑定状态</th><th>客户数</th><th>点电话</th><th>看二维码</th><th>最近活跃</th><th></th></tr>' +
       rows.map((r) =>
         '<tr><td>' + esc(r.s.code) + '</td><td><b>' + esc(r.s.name) + '</b></td>' +
-        '<td>' + esc(r.s.role) + '</td><td>' + r.n + '</td><td>' + r.calls + '</td><td>' + r.qrs + '</td>' +
+        '<td>' + esc(r.s.role) + '</td>' +
+        '<td>' + (r.self ? '<b style="color:#1a7f37">已绑定</b><br><span class="hint">' + fmtT(r.self.created_at) + '</span>' : '<span class="hint">未绑定</span>') + '</td>' +
+        '<td>' + r.n + '</td><td>' + r.calls + '</td><td>' + r.qrs + '</td>' +
         '<td>' + (r.last ? fmtT(r.last) : "—") + '</td>' +
         '<td><button class="small ghost" onclick="Kanban.customers(\'' + esc(r.s.code) + '\')">看客户</button></td></tr>'
       ).join("") +
-      '<tr><td>—</td><td><b>无归属</b></td><td>搜索/通用入口</td><td>' + noneVs.length + '</td><td colspan="4"><button class="small ghost" onclick="Kanban.customers(\'\')">看客户</button></td></tr>' +
+      '<tr><td>—</td><td><b>无归属</b></td><td>搜索/通用入口</td><td>—</td><td>' + noneVs.length + '</td><td colspan="4"><button class="small ghost" onclick="Kanban.customers(\'\')">看客户</button></td></tr>' +
       '</table></div>';
   }
 
@@ -74,7 +78,7 @@
       '<div class="row" style="margin-bottom:10px"><button class="small ghost" onclick="Kanban.overview()">← 返回总览</button><button class="small" onclick="Kanban.load()">刷新数据</button></div>' +
       (vs.length ? vs.map((v) => {
         const st = visitorStats(v, byOpenid);
-        return '<div class="row" style="border-bottom:1px solid var(--line,#eee);padding:10px 0"><span class="grow"><b>' + esc(dispName(v)) + '</b>' + (v.remark ? ' <span class="hint">' + esc(shortId(v.openid)) + '</span>' : '') +
+        return '<div class="row" style="border-bottom:1px solid var(--line,#eee);padding:10px 0"><span class="grow"><b>' + esc(dispName(v)) + '</b>' + (v.is_self ? ' <b style="color:#1a7f37">本人·已绑定</b>' : '') + (v.remark ? ' <span class="hint">' + esc(shortId(v.openid)) + '</span>' : '') +
           '<br><span class="hint">首次进入：' + fmtT(v.created_at) + (v.first_scene ? " · 来源 " + esc(v.first_scene) : "") +
           (st.storesSeen.length ? "<br>逛过：" + esc(st.storesSeen.join("、")) : "") +
           "<br>点电话 " + st.calls + " 次 · 看二维码 " + st.qrs + " 次 · 最后活跃 " + fmtT(st.last) + '</span></span>' +
