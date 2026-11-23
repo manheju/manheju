@@ -117,7 +117,8 @@
     el.innerHTML =
       '<div class="card"><h2>客户归属 · 总览</h2>' +
       '<p class="hint">归属规则：客户第一次扫谁的码就永久记在谁名下，不换人。评业绩看「点电话 / 看二维码」，不看打开数。点任意一行看他名下的客户名单。</p>' +
-      '<div class="row" style="margin-bottom:10px"><button class="small" onclick="AttrPanel.load()">刷新数据</button></div>' +
+      '<div class="row" style="margin-bottom:10px"><button class="small" onclick="AttrPanel.load()">刷新数据</button>' +
+      '<button class="small" onclick="AttrPanel.resetBind()">重置员工绑定</button></div>' +
       '<table><tr><th>编号</th><th>姓名</th><th>身份</th><th>客户数</th><th>点电话</th><th>看二维码</th><th>最近活跃</th><th></th></tr>' +
       rows.map((r) =>
         '<tr><td>' + esc(r.s.code) + '</td><td><b>' + esc(r.s.name) + '</b>' + (r.s.phone ? "" : ' <span class="err">缺联系电话</span>') + '</td>' +
@@ -138,7 +139,7 @@
     el.innerHTML =
       '<div class="card"><h2>' + (staff ? esc(staff.name) + "（" + esc(staff.code) + "）名下的客户" : "无归属客户") + '（' + vs.length + '）</h2>' +
       '<div class="row" style="margin-bottom:10px"><button class="small ghost" onclick="AttrPanel.overview()">← 返回总览</button><button class="small" onclick="AttrPanel.load()">刷新数据</button></div>' +
-      '<p class="hint">微信不给小程序客户的昵称头像，认出是谁后点「备注」给他起名（如：王姐·看长安路），名单里就一眼能认出来。归属记错了：用「改归属」直接划给正确的人；员工扫错了别人的码，用「重置」清掉记录，再让他关掉小程序重扫自己的码。</p>' +
+      '<p class="hint">微信不给小程序客户的昵称头像，认出是谁后点「备注」给他起名（如：王姐·看长安路），名单里就一眼能认出来。归属记错了：用「改归属」直接划给正确的人；员工扫错了别人的码，用顶部的「重置员工绑定」处理。</p>' +
       (vs.length ? vs.map((v) => {
         const st = visitorStats(v, byOpenid);
         return '<div class="row" style="border-bottom:1px solid var(--line,#eee);padding:10px 0"><span class="grow"><b>' + esc(dispName(v)) + '</b>' + (v.remark ? ' <span class="hint">' + esc(shortId(v.openid)) + '</span>' : '') +
@@ -147,7 +148,6 @@
           "<br>点电话 " + st.calls + " 次 · 看二维码 " + st.qrs + " 次 · 最后活跃 " + fmtT(st.last) + '</span></span>' +
           '<button class="small ghost" onclick="AttrPanel.remark(\'' + esc(v.openid) + '\')">备注</button>' +
           '<button class="small ghost" onclick="AttrPanel.reassign(\'' + esc(v.openid) + '\')">改归属</button>' +
-          '<button class="small ghost" onclick="AttrPanel.resetVisitor(\'' + esc(v.openid) + '\')">重置</button>' +
           '<button class="small ghost" onclick="AttrPanel.timeline(\'' + esc(v.openid) + '\')">看轨迹</button></div>';
       }).join("") : '<p class="hint">还没有客户。</p>') +
       '</div>';
@@ -165,8 +165,7 @@
       (v ? " · 首次进入 " + fmtT(v.created_at) : "") + (v && v.remark ? " · " + esc(shortId(openid)) : "") + '</p>' +
       '<div class="row" style="margin-bottom:10px"><button class="small ghost" onclick="AttrPanel.customers(\'' + (v && v.staff_code ? esc(v.staff_code) : "") + '\')">← 返回客户名单</button>' +
       '<button class="small ghost" onclick="AttrPanel.remark(\'' + esc(openid) + '\')">备注</button>' +
-      '<button class="small ghost" onclick="AttrPanel.reassign(\'' + esc(openid) + '\')">改归属</button>' +
-      '<button class="small ghost" onclick="AttrPanel.resetVisitor(\'' + esc(openid) + '\')">重置归属</button></div>' +
+      '<button class="small ghost" onclick="AttrPanel.reassign(\'' + esc(openid) + '\')">改归属</button></div>' +
       (evs.length ? evs.map((e) => {
         let extra = "";
         if (e.store_id) extra += " · " + esc(storeName(e.store_id));
@@ -209,19 +208,34 @@
     } catch (e) { alert("改归属失败：" + (e.message || e)); }
   }
 
-  async function resetVisitor(openid) {
-    const v = D.visitors.find((x) => x.openid === openid);
-    if (!v) return;
-    if (!window.confirm("重置归属：将删除客户「" + dispName(v) + "」的归属记录（浏览轨迹保留）。删掉后，他下次扫谁的码进来，就重新记在谁名下。\n\n典型用法：销售扫错了别人的码——先在这里重置，再让他把小程序彻底关掉、重新扫自己的码。\n\n确认重置？")) return;
-    const backCode = v.staff_code || "";
+  // 重置员工绑定：员工扫错了别人的码，他自己的账号挂在那个人名下——这是员工层面的事，
+  // 从顶部统一处理：输入挂错的编号 → 在其名下记录里挑出员工本人那条 → 删除，他重扫自己的码即重新绑定。
+  async function resetBind() {
+    const list = D.staff.map((s) => s.code + " " + s.name).join("、");
+    const input = window.prompt("重置员工绑定：员工扫错了别人的码，他自己的账号现在挂在那个人名下。\n输入【他挂错的那个人】的编号（如 S08）：\n可选：" + list, "");
+    if (input === null) return;
+    const code = input.trim().toUpperCase();
+    const wrong = D.staff.find((s) => s.code === code);
+    if (!wrong) { alert("编号不对，请输列表里的编号，比如 S08"); return; }
+    const vs = D.visitors.filter((v) => v.staff_code === code)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    if (!vs.length) { alert(wrong.name + "（" + code + "）名下暂时没有记录，没有可重置的。"); return; }
+    const evCount = {};
+    D.events.forEach((e) => { evCount[e.openid] = (evCount[e.openid] || 0) + 1; });
+    const lines = vs.map((v, i) => (i + 1) + ". " + dispName(v) + " · 首次 " + fmt(v.created_at) + " · 轨迹 " + (evCount[v.openid] || 0) + " 条");
+    const pick = window.prompt(wrong.name + "名下共 " + vs.length + " 条记录。哪一条是【扫错码的员工本人】？输序号：\n" + lines.join("\n"), "");
+    if (pick === null) return;
+    const idx = parseInt(pick, 10) - 1;
+    if (isNaN(idx) || idx < 0 || idx >= vs.length) { alert("序号不对"); return; }
+    const v = vs[idx];
+    if (!window.confirm("确认重置「" + dispName(v) + "」的绑定？\n将删除这条归属记录（浏览轨迹保留）。删掉后，让这名员工把小程序彻底关掉、重新扫他自己的码，就重新绑回他自己了。")) return;
     try {
-      await restDelete("visitors", "openid=eq." + encodeURIComponent(openid));
-      D.visitors = D.visitors.filter((x) => x.openid !== openid);
-      if (VIEW.name === "timeline") customers(backCode);
-      else if (VIEW.name === "customers") customers(VIEW.code || "");
-      else renderOverview();
+      await restDelete("visitors", "openid=eq." + encodeURIComponent(v.openid));
+      D.visitors = D.visitors.filter((x) => x.openid !== v.openid);
+      renderOverview();
+      alert("已重置。让员工关掉小程序、重新扫自己的码即可。");
     } catch (e) { alert("重置失败：" + (e.message || e)); }
   }
 
-  window.AttrPanel = { load, overview: renderOverview, customers, timeline, remark, reassign, resetVisitor };
+  window.AttrPanel = { load, overview: renderOverview, customers, timeline, remark, reassign, resetBind };
 })();
