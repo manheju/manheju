@@ -36,11 +36,23 @@
     if (!r.ok) throw new Error("读取 " + table + " 失败（" + r.status + "）");
     return r.json();
   }
+  async function restPatch(table, query, body) {
+    const t = await token();
+    const r = await fetch(BASE + "/rest/v1/" + table + "?" + query, {
+      method: "PATCH",
+      headers: { apikey: ANON, Authorization: "Bearer " + (t || ANON), "Content-Type": "application/json", Prefer: "return=representation" },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error("保存失败（" + r.status + "）");
+    return r.json();
+  }
 
   const KIND_LABEL = { enter: "进入小程序", view_store: "看门店", view_type: "看户型", tap_call: "点了电话", tap_qr: "看了二维码" };
   let D = null;
   const fmtT = (iso) => { try { return new Date(iso).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false }); } catch (e) { return iso || ""; } };
   const shortId = (openid) => "访客 …" + String(openid || "").slice(-4);
+  const dispName = (v) => (v && v.remark ? v.remark : shortId(v ? v.openid : ""));
+  let VIEW = { name: "overview" };
 
   function eventsByOpenid() {
     const m = {};
@@ -83,6 +95,7 @@
   }
 
   function renderOverview() {
+    VIEW = { name: "overview" };
     const el = $("#tab-attr");
     const byOpenid = eventsByOpenid();
     const rows = D.staff.map((s) => {
@@ -108,6 +121,7 @@
   }
 
   function customers(code) {
+    VIEW = { name: "customers", code: code || "" };
     const el = $("#tab-attr");
     const byOpenid = eventsByOpenid();
     const staff = code ? staffOf(code) : null;
@@ -115,27 +129,31 @@
     el.innerHTML =
       '<div class="card"><h2>' + (staff ? esc(staff.name) + "（" + esc(staff.code) + "）名下的客户" : "无归属客户") + '（' + vs.length + '）</h2>' +
       '<div class="row" style="margin-bottom:10px"><button class="small ghost" onclick="AttrPanel.overview()">← 返回总览</button><button class="small" onclick="AttrPanel.load()">刷新数据</button></div>' +
+      '<p class="hint">微信不给小程序客户的昵称头像，认出是谁后点「备注」给他起名（如：王姐·看长安路），名单里就一眼能认出来。</p>' +
       (vs.length ? vs.map((v) => {
         const st = visitorStats(v, byOpenid);
-        return '<div class="row" style="border-bottom:1px solid var(--line,#eee);padding:10px 0"><span class="grow"><b>' + esc(shortId(v.openid)) + '</b>' +
+        return '<div class="row" style="border-bottom:1px solid var(--line,#eee);padding:10px 0"><span class="grow"><b>' + esc(dispName(v)) + '</b>' + (v.remark ? ' <span class="hint">' + esc(shortId(v.openid)) + '</span>' : '') +
           '<br><span class="hint">首次进入：' + fmtT(v.created_at) + (v.first_scene ? " · 来源 " + esc(v.first_scene) : "") +
           (st.storesSeen.length ? "<br>逛过：" + esc(st.storesSeen.join("、")) : "") +
           "<br>点电话 " + st.calls + " 次 · 看二维码 " + st.qrs + " 次 · 最后活跃 " + fmtT(st.last) + '</span></span>' +
+          '<button class="small ghost" onclick="AttrPanel.remark(\'' + esc(v.openid) + '\')">备注</button>' +
           '<button class="small ghost" onclick="AttrPanel.timeline(\'' + esc(v.openid) + '\')">看轨迹</button></div>';
       }).join("") : '<p class="hint">还没有客户。</p>') +
       '</div>';
   }
 
   function timeline(openid) {
+    VIEW = { name: "timeline", openid };
     const el = $("#tab-attr");
     const v = D.visitors.find((x) => x.openid === openid);
     const staff = v && v.staff_code ? staffOf(v.staff_code) : null;
     const evs = (eventsByOpenid()[openid] || []).slice().sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
     el.innerHTML =
-      '<div class="card"><h2>' + esc(shortId(openid)) + ' 的轨迹</h2>' +
+      '<div class="card"><h2>' + esc(dispName(v)) + ' 的轨迹</h2>' +
       '<p class="hint">归属：' + (staff ? esc(staff.name) + "（" + esc(staff.code) + "）" : "无归属") +
-      (v ? " · 首次进入 " + fmtT(v.created_at) : "") + '</p>' +
-      '<div class="row" style="margin-bottom:10px"><button class="small ghost" onclick="AttrPanel.customers(\'' + (v && v.staff_code ? esc(v.staff_code) : "") + '\')">← 返回客户名单</button></div>' +
+      (v ? " · 首次进入 " + fmtT(v.created_at) : "") + (v && v.remark ? " · " + esc(shortId(openid)) : "") + '</p>' +
+      '<div class="row" style="margin-bottom:10px"><button class="small ghost" onclick="AttrPanel.customers(\'' + (v && v.staff_code ? esc(v.staff_code) : "") + '\')">← 返回客户名单</button>' +
+      '<button class="small ghost" onclick="AttrPanel.remark(\'' + esc(openid) + '\')">备注</button></div>' +
       (evs.length ? evs.map((e) => {
         let extra = "";
         if (e.store_id) extra += " · " + esc(storeName(e.store_id));
@@ -145,5 +163,19 @@
       '</div>';
   }
 
-  window.AttrPanel = { load, overview: renderOverview, customers, timeline };
+  async function remark(openid) {
+    const v = D.visitors.find((x) => x.openid === openid);
+    if (!v) return;
+    const name = window.prompt("给这个客户起个备注名（比如：王姐·想看长安路），留空 = 清除备注", v.remark || "");
+    if (name === null) return;
+    try {
+      await restPatch("visitors", "openid=eq." + encodeURIComponent(openid), { remark: name.trim() || null });
+      v.remark = name.trim() || null;
+      if (VIEW.name === "timeline") timeline(openid);
+      else if (VIEW.name === "customers") customers(VIEW.code || "");
+      else renderOverview();
+    } catch (e) { alert("保存备注失败：" + (e.message || e)); }
+  }
+
+  window.AttrPanel = { load, overview: renderOverview, customers, timeline, remark };
 })();
