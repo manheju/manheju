@@ -120,6 +120,8 @@ footer::after{content:"";position:absolute;inset:0;background:linear-gradient(18
 .room-card .rp{text-align:right}
 .room-card .rp b{color:var(--gold);font-size:18px;font-weight:800}
 .badge{display:inline-block;background:#E7F4EC;color:var(--accent-mid);padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;margin-top:4px}
+.full-badge{display:inline-block;background:#C8402A;color:#fff;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;vertical-align:2px}
+.full-banner{margin-top:12px;background:#C8402A;color:#fff;font-size:15px;font-weight:700;text-align:center;line-height:1.5;padding:9px 12px;border-radius:12px}
 .fees{background:var(--card);border-radius:24px;padding:22px;margin-top:30px;font-size:15px;box-shadow:var(--shadow-sm)}
 .fees h3{margin:0 0 10px;color:var(--ink);font-size:19px;font-weight:800}
 .fees ul{list-style:none;margin:0;padding:0}

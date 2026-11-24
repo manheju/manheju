@@ -19,6 +19,7 @@
 <script>
 if(!ManjuData.isLive) document.getElementById('demoBanner').style.display='block';
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function isFull(s){return ((window.MANHEJU_CONFIG&&window.MANHEJU_CONFIG.fullStoreSlugs)||[]).includes(s.slug)}
   function img(p){return p&&p.startsWith('media/')?'https://manheju-media-1424222315.cos.ap-guangzhou.myqcloud.com/'+p:p}
 function tagsOf(s){
   let t = Array.isArray(s.highlights) ? s.highlights : (typeof s.highlights==='string' && s.highlights ? s.highlights.split(/[,，]/) : []);
@@ -36,7 +37,7 @@ ManjuData.listPublicStores().then(stores=>{
   if(stores[0] && stores[0]._cached){ el.innerHTML='<div style="text-align:center;color:var(--faint);font-size:12.5px;margin:0 0 10px">网络较慢，先显示缓存的门店信息，点进门店看最新房源</div>'; } else { el.innerHTML=''; }
   el.innerHTML+=stores.map((s,i)=>`<a class="store-row" style="--i:${i}" href="store.html?store=${encodeURIComponent(s.slug)}">
     ${s.cover_url?`<img class="thumb" loading="lazy" src="${esc(img(s.cover_url))}" alt="">`:`<span class="thumb-none">漫和居</span>`}
-    <span class="info"><span class="top"><h3>${esc(s.name)}</h3><span class="price"><b>${esc(s.starting_price)}</b>元<small style="font-size:12px;color:var(--muted);font-weight:400">/月起</small></span></span>
+    <span class="info"><span class="top"><h3>${esc(s.name)}${isFull(s)?' <span class="full-badge">已满租</span>':''}</h3><span class="price"><b>${esc(s.starting_price)}</b>元<small style="font-size:12px;color:var(--muted);font-weight:400">/月起</small></span></span>
     <span class="addr">📍 ${esc(s.address||'')}${s.transit_name?`<br>🚇 ${esc(s.transit_name)}${s.transit_distance?' · '+esc(s.transit_distance):''}`:''}</span>
     <span class="tags">${tagsOf(s).map((h,j)=>`<span class="tag${j<2?' hot':''}">${esc(h)}</span>`).join('')}</span></span>
     <span class="go">›</span></a>`).join('');

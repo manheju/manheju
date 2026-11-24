@@ -7,6 +7,7 @@
 <script>
 if(!ManjuData.isLive) document.getElementById('demoBanner').style.display='block';
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function isFull(s){return ((window.MANHEJU_CONFIG&&window.MANHEJU_CONFIG.fullStoreSlugs)||[]).includes(s.slug)}
   function img(p){return p&&p.startsWith('media/')?'https://manheju-media-1424222315.cos.ap-guangzhou.myqcloud.com/'+p:p}
 function getSlug(){ const q=new URLSearchParams(location.search).get('store'); if(q) return q; const p=location.pathname.match(/\/store\/([\w-]+)/); return p?p[1]:null; }
 const slug=getSlug(), app=document.getElementById('app');
@@ -25,7 +26,7 @@ window.zoom=function(src){ document.getElementById('lightboxImg').src=src; lb.cl
       <div class="backbar"><a href="index.html">‹ 全部门店</a></div>
       ${store.cover_url?`<img class="cover-hero" src="${esc(img(store.cover_url))}" alt="${esc(store.name)}">`:''}
       <div class="store-head"><h1>${esc(store.name)}</h1>
-      <div class="price"><b>${esc(store.starting_price)}</b> 元/月起 <small>· 押一付一 · 无中介费</small></div>
+      <div class="price"><b>${esc(store.starting_price)}</b> 元/月起 <small>· 押一付一 · 无中介费</small></div>${isFull(store)?'<div class="full-banner">已满租 · 本店目前已全部租满，暂无空房</div>':''}
       <div class="loc"><div>📍 ${esc(store.address||'')}</div>
       ${store.transit_name?`<div>🚇 ${esc(store.transit_name)}${store.transit_distance?' · '+esc(store.transit_distance):''}</div>`:''}
       ${store.landmark?`<div>🏙 附近：${esc(store.landmark)}</div>`:''}</div>
