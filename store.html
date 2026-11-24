@@ -7,7 +7,7 @@
 <script>
 if(!ManjuData.isLive) document.getElementById('demoBanner').style.display='block';
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function isFull(s){return ((window.MANHEJU_CONFIG&&window.MANHEJU_CONFIG.fullStoreSlugs)||[]).includes(s.slug)}
+function isFull(s){return s.is_full===true}
   function img(p){return p&&p.startsWith('media/')?'https://manheju-media-1424222315.cos.ap-guangzhou.myqcloud.com/'+p:p}
 function getSlug(){ const q=new URLSearchParams(location.search).get('store'); if(q) return q; const p=location.pathname.match(/\/store\/([\w-]+)/); return p?p[1]:null; }
 const slug=getSlug(), app=document.getElementById('app');

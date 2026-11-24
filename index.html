@@ -19,7 +19,7 @@
 <script>
 if(!ManjuData.isLive) document.getElementById('demoBanner').style.display='block';
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function isFull(s){return ((window.MANHEJU_CONFIG&&window.MANHEJU_CONFIG.fullStoreSlugs)||[]).includes(s.slug)}
+function isFull(s){return s.is_full===true}
   function img(p){return p&&p.startsWith('media/')?'https://manheju-media-1424222315.cos.ap-guangzhou.myqcloud.com/'+p:p}
 function tagsOf(s){
   let t = Array.isArray(s.highlights) ? s.highlights : (typeof s.highlights==='string' && s.highlights ? s.highlights.split(/[,，]/) : []);

@@ -10,8 +10,7 @@ window.MANHEJU_CONFIG = {
   apiBase: "https://1424222315-en4v5xjivl.ap-guangzhou.tencentscf.com",
   supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2aXZ4Ymd2dmhlbmtqdXJueWdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzNzIzNzIsImV4cCI6MjEwODk0ODM3Mn0.9n1o7RCyK_oKLgMC2gdU-5XB5ajcu-cBhaRbBzcUqqs",
   siteName: "漫和居公寓",
-  // 已满租门店（按 slug 标注）：2026-11-24 后湖新荣店已满租；取消时删掉对应 slug 即可
-  fullStoreSlugs: ["xinrong-metro"],
+  // 已满租改由管理员后台开关控制（stores.is_full），这里不再写死名单
   // 部署后的正式网址（可留空，系统会用当前网址自动拼门店链接）
   siteBaseUrl: "https://manheju.github.io/manheju"
 };
